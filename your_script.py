@@ -2,7 +2,7 @@ import openai
 import streamlit as st
 
 # OpenAI API 키를 직접 설정
-openai.api_key = 'ysk-proj-ZTzcctkrvGsSHIUkyCz6RNOrNGefI-gFu708a_hLDlbxs2UCoHsg9RDU6kzZk9LdbSv_vDhgL5T3BlbkFJUWQ_z-DGZXgwAteEmf4L9mzg33FRYo9wvvS9leeTA6LYF2kz6J8wYeQN1gQsE7QQ3-27uFT3sA'  # 여기에 OpenAI API 키를 직접 입력
+openai.api_key = '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'  # 여기에 OpenAI API 키를 직접 입력
 
 # 소설 스타일과 분위기 설정
 STYLES = {
