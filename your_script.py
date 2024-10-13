@@ -34,4 +34,52 @@ MOODS = {
 }
 
 # 텍스트 생성 함수
-def generate_story(style_prompt, mood_prompt, user_input,
+def generate_story(style_prompt, mood_prompt, user_input, length=100, temperature=0.7):
+    """LLaMA 모델을 사용하여 소설 생성"""
+    full_prompt = f"{style_prompt}\n{mood_prompt}\n{user_input}"
+    
+    # 입력 텍스트를 토크나이즈
+    inputs = tokenizer(full_prompt, return_tensors="pt").input_ids.to(device)
+    
+    # LLaMA 모델로 텍스트 생성
+    outputs = model.generate(inputs, max_length=length, temperature=temperature, num_return_sequences=1)
+    
+    # 생성된 텍스트를 디코딩
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return generated_text
+
+def main():
+    st.title("LLaMA 소설 작성기 - 다양한 작가 스타일과 분위기 선택")
+
+    # 사용자 입력
+    user_input = st.text_area("소설의 대략적인 내용을 입력하세요:", height=200)
+
+    # 소설 스타일 선택
+    style = st.selectbox("소설 스타일 선택", list(STYLES.keys()))
+    style_prompt = STYLES[style]
+
+    # 소설 분위기 선택
+    mood = st.selectbox("소설 분위기 선택", list(MOODS.keys()))
+    mood_prompt = MOODS[mood]
+
+    # 소설 길이 선택
+    length = st.slider("소설의 글자 수 선택", min_value=50, max_value=1000, value=200)
+
+    # 창의성(Temperature) 조절
+    temperature = st.slider("창의성 조절 (낮을수록 고증에 충실, 높을수록 창의적)", 0.0, 1.0, 0.7)
+
+    # 소설 생성 버튼
+    if st.button("소설 생성"):
+        if user_input:
+            with st.spinner("소설을 생성 중입니다..."):
+                story = generate_story(style_prompt, mood_prompt, user_input, length=length, temperature=temperature)
+            st.subheader(f"{style}와 {mood}로 작성된 소설:")
+            st.write(story)
+
+            # 결과를 파일로 저장할 수 있는 옵션 제공
+            st.download_button("소설을 TXT 파일로 저장", data=story, file_name="generated_story.txt")
+        else:
+            st.warning("소설 내용을 입력해주세요.")
+
+if __name__ == "__main__":
+    main()
