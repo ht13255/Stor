@@ -29,17 +29,21 @@ MOODS = {
 }
 
 def generate_story(style_prompt, mood_prompt, user_input, ending_input, length, temperature=0.7):
-    """GPT 모델을 사용하여 소설 생성"""
+    """GPT 최신 API를 사용하여 소설 생성 (ChatCompletion 사용)"""
     full_prompt = f"{style_prompt}\n{mood_prompt}\n소설 내용:\n{user_input}\n결말:\n{ending_input}\n"
-    response = openai.Completion.create(
-        engine="text-davinci-003",  # GPT 모델 (GPT-4로 변경 가능)
-        prompt=full_prompt,
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-4",  # GPT-4 모델 사용
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant specialized in writing stories."},
+            {"role": "user", "content": full_prompt}
+        ],
         max_tokens=length,
-        temperature=temperature,
-        n=1,
-        stop=None
+        temperature=temperature
     )
-    return response.choices[0].text.strip()
+    
+    # 생성된 응답 반환
+    return response['choices'][0]['message']['content']
 
 def main():
     st.title("비극적이고 어두운 소설 작성기 - 다양한 작가 스타일과 분위기 선택")
