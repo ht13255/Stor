@@ -1,0 +1,2 @@
+# config.py (이 파일을 .gitignore에 추가)
+OPENAI_API_KEY = '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'
