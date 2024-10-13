@@ -1,9 +1,8 @@
 import openai
 import streamlit as st
-from config import OPENAI_API_KEY  # config.py에서 API 키 불러오기
 
-# OpenAI API 키 설정
-openai.api_key = OPENAI_API_KEY
+# OpenAI API 키를 직접 설정
+openai.api_key = 'ysk-proj-ZTzcctkrvGsSHIUkyCz6RNOrNGefI-gFu708a_hLDlbxs2UCoHsg9RDU6kzZk9LdbSv_vDhgL5T3BlbkFJUWQ_z-DGZXgwAteEmf4L9mzg33FRYo9wvvS9leeTA6LYF2kz6J8wYeQN1gQsE7QQ3-27uFT3sA'  # 여기에 OpenAI API 키를 직접 입력
 
 # 소설 스타일과 분위기 설정
 STYLES = {
@@ -29,7 +28,7 @@ MOODS = {
 }
 
 def generate_story(style_prompt, mood_prompt, user_input, ending_input, length, temperature=0.7):
-    """GPT 최신 API를 사용하여 소설 생성 (ChatCompletion 사용)"""
+    """GPT 최신 API를 사용하여 소설 생성"""
     full_prompt = f"{style_prompt}\n{mood_prompt}\n소설 내용:\n{user_input}\n결말:\n{ending_input}\n"
     
     response = openai.ChatCompletion.create(
