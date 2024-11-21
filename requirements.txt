@@ -1,5 +1,6 @@
 streamlit
-fpdf
 beautifulsoup4
 requests
 PyPDF2
+selenium
+webdriver-manager
