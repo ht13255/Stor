@@ -1,4 +1,4 @@
 streamlit
-fpdf==1.7.2
-beautifulsoup4==4.13.0
-requests==2.31.0
+fpdf
+beautifulsoup4
+requests
