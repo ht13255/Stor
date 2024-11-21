@@ -1,33 +1,18 @@
 # 파일 경로: app.py
 
 import streamlit as st
-from fpdf import FPDF
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
-from io import BytesIO
 from PyPDF2 import PdfMerger
+from io import BytesIO
+import os
 
-# PDF 생성 함수 (단일 페이지)
-def create_pdf_from_text(title, text):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-
-    # 제목 추가
-    pdf.set_font("Arial", style="B", size=14)
-    pdf.cell(0, 10, title, ln=True, align="C")
-    pdf.ln(10)
-
-    # 내용 추가
-    pdf.set_font("Arial", size=12)
-    for line in text.split("\n"):
-        if line.strip():  # 공백 라인 제거
-            pdf.multi_cell(0, 10, line.strip())
-    return pdf
-
-# 사이트에서 모든 링크를 크롤링
+# 링크 크롤링 함수
 def get_all_links(base_url):
     try:
         response = requests.get(base_url)
@@ -37,46 +22,63 @@ def get_all_links(base_url):
         for a_tag in soup.find_all("a", href=True):
             href = a_tag['href']
             full_url = urljoin(base_url, href)
-            # 동일한 도메인 내 링크만 수집
-            if urlparse(full_url).netloc == urlparse(base_url).netloc:
+            if urlparse(full_url).netloc == urlparse(base_url).netloc:  # 같은 도메인만
                 links.add(full_url)
         return links
     except Exception as e:
         st.error(f"링크를 가져오는 중 오류가 발생했습니다: {e}")
         return set()
 
-# 페이지 내용을 텍스트로 추출
-def get_page_text(url):
+# Selenium으로 PDF 저장 함수
+def save_page_as_pdf(url, output_dir):
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        title = soup.title.string if soup.title else "제목 없음"
-        text = soup.get_text()
-        return title, text
+        # Chrome 옵션 설정
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # 브라우저 창을 표시하지 않음
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        # PDF 저장 설정
+        chrome_prefs = {
+            "printing.print_preview_sticky_settings.appState": '{"recentDestinations":[{"id":"Save as PDF","origin":"local","account":""}],"selectedDestinationId":"Save as PDF","version":2}',
+            "savefile.default_directory": output_dir,
+        }
+        chrome_options.add_experimental_option("prefs", chrome_prefs)
+        chrome_options.add_argument("--kiosk-printing")
+
+        # WebDriver 시작
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        driver.get(url)
+        pdf_file_path = os.path.join(output_dir, f"{urlparse(url).path.replace('/', '_')}.pdf")
+        driver.execute_script("window.print();")  # PDF 저장 실행
+        driver.quit()
+        return pdf_file_path
     except Exception as e:
-        st.warning(f"페이지를 가져오는 중 오류가 발생했습니다 ({url}): {e}")
-        return "오류 발생", f"페이지를 불러오지 못했습니다: {e}"
+        st.warning(f"PDF로 저장하는 중 오류 발생 ({url}): {e}")
+        return None
 
 # PDF 통합 함수
-def merge_pdfs(pdf_list):
+def merge_pdfs(pdf_paths, output_path):
     merger = PdfMerger()
-    for pdf in pdf_list:
-        merger.append(BytesIO(pdf.output(dest="S").encode("latin1")))
-    output_pdf = BytesIO()
-    merger.write(output_pdf)
+    for pdf_path in pdf_paths:
+        merger.append(pdf_path)
+    merger.write(output_path)
     merger.close()
-    output_pdf.seek(0)
-    return output_pdf
+    return output_path
 
 # Streamlit 앱
 def main():
-    st.title("사이트 링크 크롤링 및 PDF 통합 생성")
-    st.write("사이트의 모든 링크를 크롤링하여 각 페이지를 PDF로 변환하고, 이를 통합합니다.")
+    st.title("사이트의 모든 링크를 크롤링 후 PDF로 변환")
+    st.write("사이트의 모든 링크 페이지를 크롬의 인쇄 기능을 이용하여 PDF로 저장하고, 이를 통합합니다.")
 
     url = st.text_input("사이트 URL 입력")
     if st.button("PDF 생성"):
         if url:
+            # 임시 폴더 생성
+            output_dir = "pdf_output"
+            os.makedirs(output_dir, exist_ok=True)
+
             st.info("사이트 링크를 수집 중입니다...")
             links = get_all_links(url)
 
@@ -84,27 +86,28 @@ def main():
                 st.warning("수집된 링크가 없습니다. URL을 확인해주세요.")
                 return
 
-            pdf_list = []
-            st.info("페이지 내용을 PDF로 변환 중입니다...")
+            pdf_paths = []
+            st.info("페이지를 PDF로 저장 중입니다...")
             for link in links:
-                title, text = get_page_text(link)
-                if text:
-                    pdf = create_pdf_from_text(title, text)
-                    pdf_list.append(pdf)
+                pdf_path = save_page_as_pdf(link, output_dir)
+                if pdf_path:
+                    pdf_paths.append(pdf_path)
 
-            if pdf_list:
+            if pdf_paths:
                 st.info("PDF 통합 중입니다...")
-                final_pdf = merge_pdfs(pdf_list)
-                st.success("PDF 생성 완료!")
+                final_pdf_path = os.path.join(output_dir, "merged_output.pdf")
+                merge_pdfs(pdf_paths, final_pdf_path)
 
-                st.download_button(
-                    label="통합 PDF 다운로드",
-                    data=final_pdf,
-                    file_name="merged_output.pdf",
-                    mime="application/pdf",
-                )
+                st.success("PDF 생성 완료!")
+                with open(final_pdf_path, "rb") as f:
+                    st.download_button(
+                        label="통합 PDF 다운로드",
+                        data=f,
+                        file_name="merged_output.pdf",
+                        mime="application/pdf",
+                    )
             else:
-                st.warning("PDF로 변환할 데이터가 없습니다.")
+                st.warning("PDF로 저장된 파일이 없습니다.")
         else:
             st.warning("URL을 입력하세요.")
 
