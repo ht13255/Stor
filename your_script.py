@@ -1,46 +1,91 @@
 # app.py
+
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
+import json
+import pandas as pd
 
-# Streamlit 앱 구성
-st.title("사이트 링크 수집기")
-st.write("사이트의 모든 글 링크를 가져옵니다. URL을 입력하세요.")
+def main():
+    st.title("JSON 파일 병합 도구")
+    st.write("여러 JSON 파일을 업로드하고 병합합니다.")
 
-# URL 입력 받기
-url = st.text_input("URL을 입력하세요", "https://example.com")
+    # JSON 파일 업로드
+    uploaded_files = st.file_uploader("JSON 파일을 업로드하세요", type="json", accept_multiple_files=True)
 
-# 링크 수집 함수
-def get_links(url):
-    try:
-        # 웹 페이지 요청
-        response = requests.get(url)
-        response.raise_for_status()
-        
-        # BeautifulSoup로 HTML 파싱
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 모든 <a> 태그에서 링크 추출
-        links = [a.get('href') for a in soup.find_all('a', href=True)]
-        
-        # 중복 제거 후 리스트 반환
-        unique_links = list(set(links))
-        return unique_links
-    except requests.exceptions.RequestException as e:
-        st.error(f"에러가 발생했습니다: {e}")
-        return []
+    if uploaded_files:
+        st.write(f"업로드된 파일 수: {len(uploaded_files)}")
 
-# 버튼 클릭 시 링크 가져오기 실행
-if st.button("링크 가져오기"):
-    if url:
-        with st.spinner("링크를 수집 중입니다..."):
-            links = get_links(url)
-            if links:
-                st.success(f"{len(links)}개의 링크를 찾았습니다!")
-                # 링크 리스트 출력
-                for link in links:
-                    st.write(link)
+        # JSON 데이터를 저장할 리스트
+        json_data = []
+
+        # 업로드된 파일 읽기
+        for file in uploaded_files:
+            try:
+                data = json.load(file)
+                json_data.append(data)
+            except Exception as e:
+                st.error(f"{file.name} 파일을 읽는 중 오류 발생: {e}")
+
+        # 병합 옵션 선택
+        merge_option = st.selectbox("병합 방법을 선택하세요", ["단순 병합", "공통 키로 병합"])
+
+        # 병합 처리
+        if merge_option == "단순 병합":
+            merged_data = merge_simple(json_data)
+        elif merge_option == "공통 키로 병합":
+            key = st.text_input("공통 키를 입력하세요:")
+            if key:
+                merged_data = merge_by_key(json_data, key)
             else:
-                st.warning("링크를 찾을 수 없습니다.")
-    else:
-        st.warning("URL을 입력하세요.")
+                st.warning("공통 키를 입력하세요.")
+                return
+        else:
+            st.error("올바른 병합 옵션을 선택하세요.")
+            return
+
+        # 병합 결과 출력
+        st.subheader("병합 결과")
+        st.write(merged_data)
+
+        # 병합된 JSON 파일 다운로드
+        st.download_button(
+            label="병합된 JSON 파일 다운로드",
+            data=json.dumps(merged_data, ensure_ascii=False, indent=4),
+            file_name="merged_data.json",
+            mime="application/json"
+        )
+
+# 단순 병합
+def merge_simple(json_list):
+    merged = []
+    for data in json_list:
+        if isinstance(data, list):
+            merged.extend(data)
+        elif isinstance(data, dict):
+            merged.append(data)
+    return merged
+
+# 공통 키로 병합
+def merge_by_key(json_list, key):
+    df_list = []
+    for data in json_list:
+        if isinstance(data, list):
+            df = pd.DataFrame(data)
+        elif isinstance(data, dict):
+            df = pd.DataFrame([data])
+        else:
+            continue
+
+        if key in df.columns:
+            df_list.append(df)
+        else:
+            st.warning(f"공통 키 '{key}'가 없는 데이터가 포함되어 있습니다.")
+
+    if not df_list:
+        st.error("공통 키를 가진 데이터가 없습니다.")
+        return {}
+
+    merged_df = pd.concat(df_list, ignore_index=True)
+    return merged_df.to_dict(orient="records")
+
+if __name__ == "__main__":
+    main()
