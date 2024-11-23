@@ -43,11 +43,13 @@ def save_as_json(data, output_file):
 # Function to save data to PDF
 def save_as_pdf(data, output_file):
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", size=12)
+
     for url, content in data.items():
-        pdf.multi_cell(0, 10, f"URL: {url}\nContent:\n{content}\n\n")
+        pdf.multi_cell(0, 10, f"URL: {url}\nContent:\n{content}\n\n".encode("utf-8", errors="ignore").decode("utf-8"))
+
     pdf.output(output_file)
 
 # Streamlit App
