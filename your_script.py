@@ -37,7 +37,7 @@ def get_page_content(url):
 
 # Function to save data to JSON
 def save_as_json(data, output_file):
-    with open(output_file, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8") as f:  # UTF-8 지정
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 # Function to save data to PDF
